@@ -1,11 +1,10 @@
-import Anthropic from '@anthropic-ai/sdk'
+import Groq from 'groq-sdk'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const client = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
 export default async function handler(req: any, res: any): Promise<void> {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
@@ -22,22 +21,24 @@ export default async function handler(req: any, res: any): Promise<void> {
     res.status(400).json({ error: '잘못된 요청 형식이에요.' }); return
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    res.status(500).json({ error: 'ANTHROPIC_API_KEY가 설정되지 않았어요. Vercel 환경변수를 확인해주세요.' }); return
+  if (!process.env.GROQ_API_KEY) {
+    res.status(500).json({ error: 'GROQ_API_KEY가 설정되지 않았어요. Vercel 환경변수를 확인해주세요.' }); return
   }
 
   try {
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+    const completion = await client.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
       max_tokens: 1024,
-      system: systemPrompt,
-      messages: messages.slice(-10),
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages.slice(-10),
+      ],
     })
 
-    const text = response.content[0]?.type === 'text' ? response.content[0].text : ''
+    const text = completion.choices[0]?.message?.content ?? ''
     res.status(200).json({ text })
   } catch (err) {
-    console.error('Claude API error:', err)
+    console.error('Groq API error:', err)
     res.status(500).json({ error: '챗봇 응답에 실패했어요. 잠시 후 다시 시도해주세요.' })
   }
 }
