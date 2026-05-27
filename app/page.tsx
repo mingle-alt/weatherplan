@@ -1,65 +1,126 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import WeatherDisplay from "@/components/WeatherDisplay";
+
+type WeatherData = {
+  name: string;
+  sys: { country: string; sunrise: number; sunset: number };
+  main: { temp: number; feels_like: number; humidity: number };
+  weather: { id: number; description: string; icon: string }[];
+  wind: { speed: number };
+};
+
+type State =
+  | { status: "idle" }
+  | { status: "locating" }
+  | { status: "loading" }
+  | { status: "success"; data: WeatherData }
+  | { status: "error"; message: string };
 
 export default function Home() {
+  const [state, setState] = useState<State>({ status: "idle" });
+
+  const fetchWeather = () => {
+    setState({ status: "locating" });
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        setState({ status: "loading" });
+        const { latitude, longitude } = pos.coords;
+        const res = await fetch(`/api/weather?lat=${latitude}&lon=${longitude}`);
+        if (!res.ok) {
+          setState({ status: "error", message: "날씨 데이터를 불러오지 못했어요." });
+          return;
+        }
+        const data = await res.json();
+        setState({ status: "success", data });
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          setState({
+            status: "error",
+            message: "위치 권한이 거부되었어요.\n브라우저 설정에서 위치 접근을 허용해주세요.",
+          });
+        } else {
+          setState({ status: "error", message: "위치를 가져올 수 없어요." });
+        }
+      },
+      { timeout: 10000 }
+    );
+  };
+
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      fetchWeather();
+    } else {
+      setState({ status: "error", message: "이 브라우저는 위치 서비스를 지원하지 않아요." });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (state.status === "success") {
+    return (
+      <div>
+        <WeatherDisplay data={state.data} />
+        <div className="fixed bottom-6 right-6">
+          <button
+            onClick={fetchWeather}
+            className="bg-white/20 backdrop-blur-sm text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg text-xl hover:bg-white/30 transition-colors"
+            aria-label="새로고침"
+          >
+            🔄
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="min-h-screen bg-gradient-to-br from-sky-400 via-blue-500 to-cyan-400 flex flex-col items-center justify-center p-6 text-white">
+      <div className="text-center max-w-xs">
+        {state.status === "idle" && (
+          <>
+            <p className="text-5xl mb-4">🌤️</p>
+            <h1 className="text-2xl font-bold mb-2">오늘 뭐 입지?</h1>
+            <p className="text-sm opacity-80 mb-6">현재 날씨에 맞는 옷차림을 추천해드려요</p>
+            <button
+              onClick={fetchWeather}
+              className="bg-white text-sky-600 font-semibold rounded-2xl px-8 py-3 shadow-lg hover:shadow-xl transition-all active:scale-95"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              위치 확인하기
+            </button>
+          </>
+        )}
+
+        {state.status === "locating" && (
+          <>
+            <p className="text-5xl mb-4 animate-pulse">📍</p>
+            <p className="text-lg font-medium">위치 확인 중...</p>
+            <p className="text-sm opacity-70 mt-2">위치 접근 권한을 허용해주세요</p>
+          </>
+        )}
+
+        {state.status === "loading" && (
+          <>
+            <p className="text-5xl mb-4 animate-spin">🌀</p>
+            <p className="text-lg font-medium">날씨 불러오는 중...</p>
+          </>
+        )}
+
+        {state.status === "error" && (
+          <>
+            <p className="text-5xl mb-4">😢</p>
+            <p className="text-lg font-medium whitespace-pre-line">{state.message}</p>
+            <button
+              onClick={fetchWeather}
+              className="mt-6 bg-white text-sky-600 font-semibold rounded-2xl px-8 py-3 shadow-lg hover:shadow-xl transition-all active:scale-95"
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+              다시 시도
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
