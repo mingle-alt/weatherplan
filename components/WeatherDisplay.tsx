@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { getClothingRecommendation, getWeatherTheme } from "@/lib/clothing";
 
 type WeatherData = {
@@ -12,9 +13,13 @@ type WeatherData = {
 
 type Props = {
   data: WeatherData;
+  onGpsRefresh: () => void;
+  onCitySearch: (city: string) => void;
 };
 
-export default function WeatherDisplay({ data }: Props) {
+export default function WeatherDisplay({ data, onGpsRefresh, onCitySearch }: Props) {
+  const [input, setInput] = useState("");
+
   const temp = Math.round(data.main.temp);
   const feelsLike = Math.round(data.main.feels_like);
   const weatherId = data.weather[0].id;
@@ -25,11 +30,44 @@ export default function WeatherDisplay({ data }: Props) {
   const clothing = getClothingRecommendation(temp, weatherId);
   const iconUrl = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    onCitySearch(input.trim());
+    setInput("");
+  };
+
   return (
-    <div className={`min-h-screen bg-gradient-to-br ${theme.gradient} ${theme.textColor} flex flex-col items-center p-4 pt-8`}>
+    <div className={`min-h-screen bg-gradient-to-br ${theme.gradient} ${theme.textColor} flex flex-col items-center p-4 pt-6`}>
+
+      {/* 검색창 */}
+      <form onSubmit={handleSearch} className="flex gap-2 w-full max-w-sm mb-6">
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="다른 도시 검색 (예: Seoul, 부산)"
+          className={`flex-1 rounded-2xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 outline-none ${theme.cardBg} backdrop-blur-sm ${theme.textColor === "text-white" || theme.textColor === "text-blue-100" || theme.textColor === "text-gray-100" ? "bg-white/20 text-white placeholder:text-white/60" : "bg-white/60"}`}
+        />
+        <button
+          type="submit"
+          className={`${theme.cardBg} backdrop-blur-sm rounded-2xl px-4 py-2.5 text-lg hover:opacity-80 transition-opacity`}
+        >
+          🔍
+        </button>
+        <button
+          type="button"
+          onClick={onGpsRefresh}
+          className={`${theme.cardBg} backdrop-blur-sm rounded-2xl px-4 py-2.5 text-lg hover:opacity-80 transition-opacity`}
+          aria-label="현재 위치로"
+        >
+          📍
+        </button>
+      </form>
+
       {/* 위치 & 날씨 헤더 */}
       <div className="w-full max-w-sm text-center mb-6">
-        <p className="text-sm opacity-70 mb-1">📍 {data.name}, {data.sys.country}</p>
+        <p className="text-sm opacity-70 mb-1">{data.name}, {data.sys.country}</p>
         <div className="flex items-center justify-center gap-2">
           <img src={iconUrl} alt={data.weather[0].description} className="w-16 h-16 drop-shadow-lg" />
           <div>
