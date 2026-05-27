@@ -27,7 +27,7 @@ export default function WeatherDisplay({ data, onGpsRefresh, onCitySearch }: Pro
   const isNight = now < data.sys.sunrise || now > data.sys.sunset;
 
   const theme = getWeatherTheme(weatherId, isNight);
-  const clothing = getClothingRecommendation(temp, weatherId);
+  const clothing = getClothingRecommendation(feelsLike, weatherId);
   const iconUrl = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
 
   const handleSearch = (e: React.FormEvent) => {
@@ -84,7 +84,10 @@ export default function WeatherDisplay({ data, onGpsRefresh, onCitySearch }: Pro
 
       {/* 옷차림 추천 */}
       <div className={`w-full max-w-sm rounded-3xl ${theme.cardBg} backdrop-blur-sm p-5 shadow-lg`}>
-        <h2 className="text-lg font-semibold mb-1">👗 오늘의 옷차림</h2>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-lg font-semibold">👗 오늘의 옷차림</h2>
+          <span className="text-xs opacity-60 bg-white/10 rounded-full px-2 py-0.5">체감 {feelsLike}° 기준</span>
+        </div>
         <p className="text-sm opacity-80 mb-4">{clothing.title}</p>
 
         <div className="grid grid-cols-2 gap-2 mb-4">
