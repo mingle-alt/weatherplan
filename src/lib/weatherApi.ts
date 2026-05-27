@@ -72,14 +72,19 @@ export async function fetchByCoords(lat: number, lon: number): Promise<{
   }
 }
 
+// Geocoding API로 한글/영문 도시명 → 좌표 변환
+async function geocodeCity(city: string): Promise<{ lat: number; lon: number }> {
+  type GeoResult = { lat: number; lon: number; name: string; local_names?: Record<string, string> }
+  const url = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(city)}&limit=1&appid=${KEY}`
+  const results = await owmFetch<GeoResult[]>(url)
+  if (!results || results.length === 0) throw new Error('도시를 찾을 수 없어요. 다른 이름으로 검색해보세요.')
+  return { lat: results[0].lat, lon: results[0].lon }
+}
+
 export async function fetchByCity(city: string): Promise<{
   current: CurrentWeather
   forecast: ForecastItem[]
 }> {
-  const params = `q=${encodeURIComponent(city)}&appid=${KEY}&units=metric&lang=kr`
-  const rawCurrent = await owmFetch<RawCurrent>(`${BASE}/weather?${params}`)
-  const current = parseCurrent(rawCurrent)
-  const forecastParams = `lat=${current.lat}&lon=${current.lon}&appid=${KEY}&units=metric&lang=kr&cnt=8`
-  const rawForecast = await owmFetch<{ list: RawForecastList[] }>(`${BASE}/forecast?${forecastParams}`)
-  return { current, forecast: parseForecast(rawForecast.list) }
+  const { lat, lon } = await geocodeCity(city)
+  return fetchByCoords(lat, lon)
 }
